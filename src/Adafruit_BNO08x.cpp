@@ -304,23 +304,36 @@ bool Adafruit_BNO08x::disableReport(sh2_SensorId_t sensorId) {
 }
 
 /*!
- * @brief Put the BNO08x into Suspend Mode.
+ * @brief Put the BNO08x into Sleep Mode.
  *
- * @return true if the Suspend Mode command was successfully sent, false otherwise.
+ * @return true if the Sleep Mode command was successfully sent, false otherwise.
  *
- * This method sends the appropriate command to the BNO08x to transition it
- * into Suspend Mode, the lowest power state. Suspend Mode stops all sensor
- * processing and data reporting, significantly reducing power consumption.
- * The sensor can be re-initialized upon waking from this mode.
+ * Sends a sleep command (0x03) over the Executable Channel (Channel 1) to
+ * transition the BNO08x into a low-power state. Only wake sensors will remain active.
  */
 bool Adafruit_BNO08x::enterSuspendMode() {
-  // Prepare the suspend command
-  uint8_t suspendCmd[] = {0xF2, 0x01}; // Command to enter Suspend Mode
+  uint8_t header[4] = {0}; // SHTP Header
+  uint8_t command[1] = {3}; // Sleep command
 
-  // Use the HAL abstraction to send the command
-  int status = _HAL.write(&_HAL, suspendCmd, sizeof(suspendCmd));
+  // Header setup
+  header[0] = 5;            // Total length = 4 (header) + 1 (command)
+  header[1] = 0;
+  header[2] = 1;            // Channel = 1 (Executable)
+  header[3] = 0;            // Sequence number (increment for each transaction if needed)
 
-  return (status > 0); // Indicate success or failure
+  // Combine header and command into a single buffer
+  uint8_t packet[5] = {header[0], header[1], header[2], header[3], command[0]};
+
+  // Send the packet to the BNO08x
+  int status = _HAL.write(&_HAL, packet, sizeof(packet));
+
+  if (status > 0) {
+    Serial.println("BNO08x successfully entered Sleep Mode.");
+    return true;
+  } else {
+    Serial.println("Error: Failed to send Sleep Mode command.");
+    return false;
+  }
 }
 
 /**************************************** I2C interface
