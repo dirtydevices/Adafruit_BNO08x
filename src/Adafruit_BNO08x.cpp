@@ -280,6 +280,49 @@ bool Adafruit_BNO08x::enableReport(sh2_SensorId_t sensorId,
   return true;
 }
 
+/*!
+ * @brief Disable the specified sensor report.
+ *
+ * @param sensorId The report ID to disable.
+ * @return true if the report was successfully disabled, false otherwise.
+ *
+ * This method sends a configuration command to the BNO08x to disable the
+ * specified sensor report by setting its reporting interval to zero.
+ * Disabling reports is necessary to allow the sensor to transition to
+ * a lower power state when no active reports are required.
+ */
+bool Adafruit_BNO08x::disableReport(sh2_SensorId_t sensorId) {
+  static sh2_SensorConfig_t config;
+
+  // Prepare the configuration with zero interval
+  memset(&config, 0, sizeof(config));
+  config.reportInterval_us = 0; // Disable the report
+
+  // Send the configuration command
+  int status = sh2_setSensorConfig(sensorId, &config);
+  return (status == SH2_OK); // Indicate success or failure
+}
+
+/*!
+ * @brief Put the BNO08x into Suspend Mode.
+ *
+ * @return true if the Suspend Mode command was successfully sent, false otherwise.
+ *
+ * This method sends the appropriate command to the BNO08x to transition it
+ * into Suspend Mode, the lowest power state. Suspend Mode stops all sensor
+ * processing and data reporting, significantly reducing power consumption.
+ * The sensor can be re-initialized upon waking from this mode.
+ */
+bool Adafruit_BNO08x::enterSuspendMode() {
+  // Prepare the suspend command
+  uint8_t suspendCmd[] = {0xF2, 0x01}; // Command to enter Suspend Mode
+
+  // Use the HAL abstraction to send the command
+  int status = _HAL.write(&_HAL, suspendCmd, sizeof(suspendCmd));
+
+  return (status > 0); // Indicate success or failure
+}
+
 /**************************************** I2C interface
  * ***********************************************************/
 
