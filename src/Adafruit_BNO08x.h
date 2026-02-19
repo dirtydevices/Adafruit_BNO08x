@@ -38,35 +38,32 @@
  *            the BNO08x 9-DOF Orientation IMU Fusion Breakout
  */
 class Adafruit_BNO08x {
-public:
-  Adafruit_BNO08x(int8_t reset_pin = -1);
-  ~Adafruit_BNO08x();
+  public:
+    Adafruit_BNO08x(int8_t reset_pin = -1);
+    ~Adafruit_BNO08x();
 
-  bool begin_I2C(uint8_t i2c_addr = BNO08x_I2CADDR_DEFAULT,
-                 TwoWire *wire = &Wire, int32_t sensor_id = 0);
-  bool begin_UART(HardwareSerial *serial, int32_t sensor_id = 0);
+    bool begin_I2C(uint8_t i2c_addr = BNO08x_I2CADDR_DEFAULT, TwoWire *wire = &Wire, int32_t sensor_id = 0);
+    bool begin_UART(HardwareSerial *serial, int32_t sensor_id = 0);
 
-  bool begin_SPI(uint8_t cs_pin, uint8_t int_pin, SPIClass *theSPI = &SPI,
-                 int32_t sensor_id = 0);
+    bool begin_SPI(uint8_t cs_pin, uint8_t int_pin, SPIClass *theSPI = &SPI, int32_t sensor_id = 0);
 
-  void hardwareReset(void);
-  bool wasReset(void);
+    void hardwareReset(void);
+    bool wasReset(void);
 
-  bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us = 10000);
-  bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us, bool alwaysOnEnabled);
-  bool disableReport(sh2_SensorId_t sensorId);
+    bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us = 10000);
+    bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us, bool wakeupEnabled, bool alwaysOnEnabled);
+    bool disableReport(sh2_SensorId_t sensorId);
 
-  bool enterSuspendMode();
+    bool enterSuspendMode();
 
-  bool getSensorEvent(sh2_SensorValue_t *value);
+    bool getSensorEvent(sh2_SensorValue_t *value);
 
-  sh2_ProductIds_t prodIds; ///< The product IDs returned by the sensor
+    sh2_ProductIds_t prodIds; ///< The product IDs returned by the sensor
 
-protected:
-  virtual bool _init(int32_t sensor_id);
+  protected:
+    virtual bool _init(int32_t sensor_id);
 
-  sh2_Hal_t
-      _HAL; ///< The struct representing the SH2 Hardware Abstraction Layer
+    sh2_Hal_t _HAL; ///< The struct representing the SH2 Hardware Abstraction Layer
 };
 
 #endif
