@@ -53,6 +53,7 @@ public:
   bool wasReset(void);
 
   bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us = 10000);
+  bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us, bool alwaysOnEnabled);
   bool disableReport(sh2_SensorId_t sensorId);
 
   bool enterSuspendMode();

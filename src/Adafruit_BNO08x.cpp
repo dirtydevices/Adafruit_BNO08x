@@ -280,6 +280,38 @@ bool Adafruit_BNO08x::enableReport(sh2_SensorId_t sensorId,
   return true;
 }
 
+/**
+ * @brief Enable the given report type with always-on control
+ *
+ * @param sensorId The report ID to enable
+ * @param interval_us The update interval for reports to be generated, in
+ * microseconds
+ * @param alwaysOnEnabled If true, the sensor remains on in sleep state
+ * @return true: success false: failure
+ */
+bool Adafruit_BNO08x::enableReport(sh2_SensorId_t sensorId,
+                                   uint32_t interval_us,
+                                   bool alwaysOnEnabled) {
+  static sh2_SensorConfig_t config;
+
+  config.changeSensitivityEnabled = false;
+  config.wakeupEnabled = false;
+  config.changeSensitivityRelative = false;
+  config.alwaysOnEnabled = alwaysOnEnabled;
+  config.changeSensitivity = 0;
+  config.batchInterval_us = 0;
+  config.sensorSpecific = 0;
+
+  config.reportInterval_us = interval_us;
+  int status = sh2_setSensorConfig(sensorId, &config);
+
+  if (status != SH2_OK) {
+    return false;
+  }
+
+  return true;
+}
+
 /*!
  * @brief Disable the specified sensor report.
  *
