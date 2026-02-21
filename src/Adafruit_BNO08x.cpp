@@ -39,7 +39,7 @@
 #include "Adafruit_BNO08x.h"
 
 static Adafruit_SPIDevice *spi_dev = NULL; ///< Pointer to SPI bus interface
-static int8_t _int_pin, _reset_pin;
+static int8_t _int_pin, _reset_pin, _wake_pin;
 
 static Adafruit_I2CDevice *i2c_dev = NULL; ///< Pointer to I2C bus interface
 static HardwareSerial *uart_dev = NULL;
@@ -143,17 +143,22 @@ bool Adafruit_BNO08x::begin_UART(HardwareSerial *serial, int32_t sensor_id) {
 /*!
  *    @brief  Sets up the hardware and initializes hardware SPI
  *    @param  cs_pin The arduino pin # connected to chip select
- *    @param  int_pin The arduino pin # connected to BNO08x INT
+ *    @param  int_pin The arduino pin # connected to BNO08x INT (HINTN)
+ *    @param  wake_pin The arduino pin # connected to BNO08x WAKE (PS0)
  *    @param  theSPI The SPI object to be used for SPI connections.
  *    @param  sensor_id
  *            The user-defined ID to differentiate different sensors
  *    @return true if initialization was successful, otherwise false.
  */
-bool Adafruit_BNO08x::begin_SPI(uint8_t cs_pin, uint8_t int_pin, SPIClass *theSPI, int32_t sensor_id) {
+bool Adafruit_BNO08x::begin_SPI(uint8_t cs_pin, uint8_t int_pin, uint8_t wake_pin, SPIClass *theSPI, int32_t sensor_id) {
     i2c_dev = NULL;
 
     _int_pin = int_pin;
     pinMode(_int_pin, INPUT_PULLUP);
+
+    _wake_pin = wake_pin;
+    pinMode(_wake_pin, OUTPUT);
+    digitalWrite(_wake_pin, HIGH);
 
     if (spi_dev) {
         delete spi_dev; // remove old interface
@@ -337,26 +342,12 @@ bool Adafruit_BNO08x::disableReport(sh2_SensorId_t sensorId) {
  * transition the BNO08x into a low-power state. Only wake sensors will remain active.
  */
 bool Adafruit_BNO08x::enterSuspendMode() {
-    uint8_t header[4] = {0};  // SHTP Header
-    uint8_t command[1] = {3}; // Sleep command
-
-    // Header setup
-    header[0] = 5; // Total length = 4 (header) + 1 (command)
-    header[1] = 0;
-    header[2] = 1; // Channel = 1 (Executable)
-    header[3] = 0; // Sequence number (increment for each transaction if needed)
-
-    // Combine header and command into a single buffer
-    uint8_t packet[5] = {header[0], header[1], header[2], header[3], command[0]};
-
-    // Send the packet to the BNO08x
-    int status = _HAL.write(&_HAL, packet, sizeof(packet));
-
-    if (status > 0) {
-        Serial.println("BNO08x successfully entered Sleep Mode.");
+    int status = sh2_devSleep();
+    if (status == SH2_OK) {
+        Serial.println("BNO08x: entered suspend mode via sh2_devSleep");
         return true;
     } else {
-        Serial.println("Error: Failed to send Sleep Mode command.");
+        Serial.printf("BNO08x: sh2_devSleep failed with status %d\n", status);
         return false;
     }
 }
@@ -626,15 +617,28 @@ static int spihal_open(sh2_Hal_t *self) {
 }
 
 static bool spihal_wait_for_int(void) {
+    // First check: is HINTN already LOW? (covers boot and active streaming)
     for (int i = 0; i < 500; i++) {
         if (!digitalRead(_int_pin))
             return true;
-        // Serial.print(".");
         delay(1);
     }
-    // Serial.println("Timed out!");
-    hal_hardwareReset();
 
+    // HINTN not LOW — assert WAKE to request BNO attention (for SPI writes)
+    // Per SHTP spec: hold WAKE LOW until HINTN asserts, then release
+    digitalWrite(_wake_pin, LOW);
+
+    for (int i = 0; i < 500; i++) {
+        if (!digitalRead(_int_pin)) {
+            digitalWrite(_wake_pin, HIGH);
+            return true;
+        }
+        delay(1);
+    }
+
+    // Timeout — release WAKE
+    digitalWrite(_wake_pin, HIGH);
+    Serial.println("BNO08x: spihal_wait_for_int timeout");
     return false;
 }
 
@@ -701,15 +705,13 @@ static int spihal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len) {
 
 static void hal_hardwareReset(void) {
     if (_reset_pin != -1) {
-        // Serial.println("BNO08x Hardware reset");
-
         pinMode(_reset_pin, OUTPUT);
         digitalWrite(_reset_pin, HIGH);
         delay(10);
         digitalWrite(_reset_pin, LOW);
         delay(10);
         digitalWrite(_reset_pin, HIGH);
-        delay(10);
+        delay(300); // BNO085 needs ~100-300ms to boot and prepare SHTP advertisement
     }
 }
 
