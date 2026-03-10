@@ -333,6 +333,28 @@ bool Adafruit_BNO08x::disableReport(sh2_SensorId_t sensorId) {
     return (status == SH2_OK); // Indicate success or failure
 }
 
+/**
+ * @brief Enable or disable continuous calibration for accel, gyro, mag, and planar modes.
+ *
+ * @param sensorsMask Bitmask composed from SH2_CAL_* flags.
+ * @return true if the calibration policy was accepted, false otherwise.
+ */
+bool Adafruit_BNO08x::setCalibrationConfig(uint8_t sensorsMask) {
+    int status = sh2_setCalConfig(sensorsMask);
+    return (status == SH2_OK);
+}
+
+/**
+ * @brief Enable or disable automatic persistence of Dynamic Calibration Data.
+ *
+ * @param enabled If true, allow the sensor hub to autosave DCD to non-volatile storage.
+ * @return true if the autosave policy was accepted, false otherwise.
+ */
+bool Adafruit_BNO08x::setDcdAutoSave(bool enabled) {
+    int status = sh2_setDcdAutoSave(enabled);
+    return (status == SH2_OK);
+}
+
 /*!
  * @brief Put the BNO08x into Sleep Mode.
  *

@@ -53,6 +53,8 @@ class Adafruit_BNO08x {
     bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us = 10000);
     bool enableReport(sh2_SensorId_t sensor, uint32_t interval_us, bool wakeupEnabled, bool alwaysOnEnabled);
     bool disableReport(sh2_SensorId_t sensorId);
+    bool setCalibrationConfig(uint8_t sensorsMask);
+    bool setDcdAutoSave(bool enabled);
 
     bool enterSuspendMode();
 
