@@ -44,7 +44,8 @@ static int8_t _int_pin, _reset_pin, _wake_pin;
 static Adafruit_I2CDevice *i2c_dev = NULL; ///< Pointer to I2C bus interface
 static HardwareSerial *uart_dev = NULL;
 
-static sh2_SensorValue_t *_sensor_value = NULL;
+static sh2_SensorValue_t _discard_sensor_value = {};
+static sh2_SensorValue_t *_sensor_value = &_discard_sensor_value;
 static bool _reset_occurred = false;
 
 static int i2chal_write(sh2_Hal_t *self, uint8_t *pBuffer, unsigned len);
@@ -235,13 +236,18 @@ bool Adafruit_BNO08x::wasReset(void) {
  * @return false: No new report available to fill
  */
 bool Adafruit_BNO08x::getSensorEvent(sh2_SensorValue_t *value) {
-    _sensor_value = value;
+    sh2_SensorValue_t *target = value != NULL ? value : &_discard_sensor_value;
+    _sensor_value = target;
 
-    value->timestamp = 0;
+    target->timestamp = 0;
 
     sh2_service();
 
-    if (value->timestamp == 0 && value->sensorId != SH2_GYRO_INTEGRATED_RV) {
+    // Restore the default sink so unsolicited callbacks after this return
+    // do not write through a stale caller-owned pointer.
+    _sensor_value = &_discard_sensor_value;
+
+    if (target->timestamp == 0 && target->sensorId != SH2_GYRO_INTEGRATED_RV) {
         // no new events
         return false;
     }
@@ -754,13 +760,14 @@ static void hal_callback(void *cookie, sh2_AsyncEvent_t *pEvent) {
 // Handle sensor events.
 static void sensorHandler(void *cookie, sh2_SensorEvent_t *event) {
     int rc;
+    sh2_SensorValue_t *target = _sensor_value != NULL ? _sensor_value : &_discard_sensor_value;
 
     // Serial.println("Got an event!");
 
-    rc = sh2_decodeSensorEvent(_sensor_value, event);
+    rc = sh2_decodeSensorEvent(target, event);
     if (rc != SH2_OK) {
         Serial.println("BNO08x - Error decoding sensor event");
-        _sensor_value->timestamp = 0;
+        target->timestamp = 0;
         return;
     }
 }
